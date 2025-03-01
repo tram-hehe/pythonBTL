@@ -10,7 +10,6 @@ def connect_db():
     conn = sqlite3.connect("car_dealership.db")
     return conn
 
-
 def execute_query(query, params=()):
     conn = connect_db()
     cursor = conn.cursor()
@@ -349,6 +348,10 @@ class CarDealershipApp:
 
         if not search_results:
             messagebox.showinfo("Kết quả", "Không tìm thấy xe nào!")
+
+    def get_car_management_frame(root):
+        app = CarDealershipApp(root)
+        return app.current_frame
 
 
 if __name__ == "__main__":

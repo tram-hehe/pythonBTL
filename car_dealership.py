@@ -1,27 +1,38 @@
-import mysql.connector
+# File: car_dealership.py
+import tkinter as tk
+from tkinter import Menu
+from manage_car import add_car_gui, show_cars_gui
 
-# Kết nối tới MySQL
-def connect_db():
-    return mysql.connector.connect(
-        host="localhost",  # Địa chỉ MySQL Server
-        user="root",       # Tên người dùng MySQL
-        password="tramdac10092004",       # Mật khẩu MySQL (để trống nếu không có)
-        database="CarDealership"  # Tên cơ sở dữ liệu
-    )
 
-# Hàm thực thi câu lệnh SQL (SELECT)
-def fetch_data(query, params=None):
-    conn = connect_db()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(query, params or ())
-    result = cursor.fetchall()
-    conn.close()
-    return result
+def main_gui():
+    root = tk.Tk()
+    root.title("Quản lý Đại Lý Xe Hơi")
 
-# Hàm thực thi câu lệnh SQL (INSERT, UPDATE, DELETE)
-def execute_query(query, params=None):
-    conn = connect_db()
-    cursor = conn.cursor()
-    cursor.execute(query, params or ())
-    conn.commit()
-    conn.close()
+    menu_bar = Menu(root)
+    root.config(menu=menu_bar)
+
+    car_menu = Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Quản lý Xe", menu=car_menu)
+    car_menu.add_command(label="Thêm Xe", command=add_car_gui)
+    car_menu.add_command(label="Xem Xe", command=show_cars_gui)
+
+    customer_menu = Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Quản lý Khách Hàng", menu=customer_menu)
+
+    employee_menu = Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Quản lý Nhân Viên", menu=employee_menu)
+
+    order_menu = Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Quản lý Đơn Hàng & Hợp Đồng", menu=order_menu)
+
+    report_menu = Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Báo Cáo & Thống Kê", menu=report_menu)
+
+    system_menu = Menu(menu_bar, tearoff=0)
+    menu_bar.add_cascade(label="Hệ Thống", menu=system_menu)
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main_gui()

@@ -58,11 +58,14 @@ class CarDealerManagementApp:
     def open_contract_management(self):
         ContractManagement(self.root)
 
+
 class OrderManagement:
     def __init__(self, root):
         self.window = tk.Toplevel(root)
         self.window.title("Quản lý Đơn hàng")
         self.window.geometry("1000x500")
+
+        self.selected_order_id = None  # Lưu ID đơn hàng đang chọn
         self.create_widgets()
         self.load_orders()
 
@@ -80,14 +83,6 @@ class OrderManagement:
             entry.grid(row=i // 4, column=(i % 4) * 2 + 1, padx=5, pady=5)
             self.entries[text] = entry
 
-        frame_search = tk.Frame(self.window)
-        frame_search.pack(pady=10)
-        tk.Label(frame_search, text="Tìm kiếm Mã Đơn Hàng:").pack(side=tk.LEFT, padx=5)
-        self.search_entry = tk.Entry(frame_search)
-        self.search_entry.pack(side=tk.LEFT, padx=5)
-        btn_search = tk.Button(frame_search, text="Tìm", command=self.search_order)
-        btn_search.pack(side=tk.LEFT, padx=5)
-
         frame_buttons = tk.Frame(self.window)
         frame_buttons.pack(pady=10)
 
@@ -100,98 +95,76 @@ class OrderManagement:
         btn_delete = tk.Button(frame_buttons, text="Xóa", command=self.delete_order)
         btn_delete.grid(row=0, column=2, padx=5)
 
-        self.tree = ttk.Treeview(self.window, columns=labels, show='headings')
+        self.tree = ttk.Treeview(self.window, columns=labels, show='headings', selectmode="browse")
         for label in labels:
             self.tree.heading(label, text=label)
         self.tree.pack(pady=10, fill=tk.BOTH, expand=True)
 
-    def search_order(self):
-        search_query = self.search_entry.get()
+        self.tree.bind("<<TreeviewSelect>>", self.on_item_selected)
 
-        if not search_query:
-            messagebox.showerror("Lỗi", "Vui lòng nhập mã đơn hàng để tìm kiếm!")
-            return
-
-        conn = sqlite3.connect("car_dealership.db")
-        cursor = conn.cursor()
-
-        cursor.execute('''SELECT * FROM orders WHERE order_id LIKE ?''', ('%' + search_query + '%',))
-        orders = cursor.fetchall()
-
-        for row in self.tree.get_children():
-            self.tree.delete(row)
-
-        for order in orders:
-            self.tree.insert("", "end", values=order)
-
-        conn.close()
-
-    def add_order(self):
-        order_id = self.entries["Mã Đơn Hàng"].get()
-        customer = self.entries["Khách Hàng"].get()
-        address = self.entries["Địa Chỉ"].get()
-        phone = self.entries["Số Điện Thoại"].get()
-        car_model = self.entries["Mẫu Xe"].get()
-        invoice = self.entries["Hóa Đơn Giao Dịch"].get()
-        staff = self.entries["Nhân viên phụ trách"].get()
-        status = self.entries["Trạng thái"].get()
-
-        if not order_id or not customer or not address or not phone or not car_model or not invoice or not staff or not status:
-            messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin!")
-            return
-
-        try:
-            conn = sqlite3.connect("car_dealership.db")
-            cursor = conn.cursor()
-
-            cursor.execute('''INSERT INTO orders (order_id, customer, address, phone, car_model, invoice, staff, status)
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-                           (order_id, customer, address, phone, car_model, invoice, staff, status))
-
-            conn.commit()
-            conn.close()
-
-            messagebox.showinfo("Thành công", "Đơn hàng đã được thêm!")
-            self.load_orders()
-
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể thêm đơn hàng: {e}")
-    def update_order(self):
+    def on_item_selected(self, event):
+        """ Điền thông tin đơn hàng vào ô nhập khi chọn một dòng trong bảng """
         selected_item = self.tree.selection()
         if not selected_item:
-            messagebox.showerror("Lỗi", "Vui lòng chọn một đơn hàng để sửa!")
             return
 
-        order_id = self.entries["Mã Đơn Hàng"].get()
-        customer = self.entries["Khách Hàng"].get()
-        address = self.entries["Địa Chỉ"].get()
-        phone = self.entries["Số Điện Thoại"].get()
-        car_model = self.entries["Mẫu Xe"].get()
-        invoice = self.entries["Hóa Đơn Giao Dịch"].get()
-        staff = self.entries["Nhân viên phụ trách"].get()
-        status = self.entries["Trạng thái"].get()
+        order_data = self.tree.item(selected_item[0], "values")
 
-        if not order_id or not customer or not address or not phone or not car_model or not invoice or not staff or not status:
+        self.selected_order_id = order_data[0]  # Lưu mã đơn hàng để cập nhật
+        for i, key in enumerate(self.entries.keys()):
+            self.entries[key].delete(0, tk.END)
+            self.entries[key].insert(0, order_data[i])
+
+    def add_order(self):
+        """ Thêm đơn hàng mới vào database """
+        order_data = [entry.get() for entry in self.entries.values()]
+
+        if not all(order_data):
             messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin!")
             return
 
         try:
-            conn = sqlite3.connect("car_dealership.db")
-            cursor = conn.cursor()
+            with sqlite3.connect("car_dealership.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute('''INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', order_data)
+                conn.commit()
 
-            cursor.execute('''UPDATE orders SET customer = ?, address = ?, phone = ?, car_model = ?, invoice = ?, staff = ?, status = ?
-                                  WHERE order_id = ?''',
-                           (customer, address, phone, car_model, invoice, staff, status, order_id))
-
-            conn.commit()
-            conn.close()
-
-            messagebox.showinfo("Thành công", "Đơn hàng đã được cập nhật!")
+            messagebox.showinfo("Thành công", "Đơn hàng đã được thêm!")
+            self.clear_entries()
             self.load_orders()
 
-        except Exception as e:
+        except sqlite3.DatabaseError as e:
+            messagebox.showerror("Lỗi", f"Không thể thêm đơn hàng: {e}")
+
+    def update_order(self):
+        """ Cập nhật đơn hàng đã chọn """
+        if not self.selected_order_id:
+            messagebox.showerror("Lỗi", "Vui lòng chọn đơn hàng cần sửa!")
+            return
+
+        order_data = [entry.get() for entry in self.entries.values()]
+        if not all(order_data):
+            messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin!")
+            return
+
+        try:
+            with sqlite3.connect("car_dealership.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute('''UPDATE orders 
+                                  SET customer = ?, address = ?, phone = ?, car_model = ?, invoice = ?, staff = ?, status = ?
+                                  WHERE order_id = ?''',
+                               (order_data[1], order_data[2], order_data[3], order_data[4], order_data[5], order_data[6], order_data[7], self.selected_order_id))
+                conn.commit()
+
+            messagebox.showinfo("Thành công", "Đơn hàng đã được cập nhật!")
+            self.clear_entries()
+            self.load_orders()
+
+        except sqlite3.DatabaseError as e:
             messagebox.showerror("Lỗi", f"Không thể sửa đơn hàng: {e}")
+
     def delete_order(self):
+        """ Xóa đơn hàng được chọn """
         selected_item = self.tree.selection()
         if not selected_item:
             messagebox.showerror("Lỗi", "Vui lòng chọn một đơn hàng để xóa!")
@@ -200,34 +173,36 @@ class OrderManagement:
         order_id = self.tree.item(selected_item[0], "values")[0]
 
         try:
-            conn = sqlite3.connect("car_dealership.db")
-            cursor = conn.cursor()
-
-            cursor.execute('''DELETE FROM orders WHERE order_id = ?''', (order_id,))
-
-            conn.commit()
-            conn.close()
+            with sqlite3.connect("car_dealership.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute('''DELETE FROM orders WHERE order_id = ?''', (order_id,))
+                conn.commit()
 
             messagebox.showinfo("Thành công", "Đơn hàng đã được xóa!")
+            self.clear_entries()
             self.load_orders()
 
-        except Exception as e:
+        except sqlite3.DatabaseError as e:
             messagebox.showerror("Lỗi", f"Không thể xóa đơn hàng: {e}")
 
     def load_orders(self):
-        conn = sqlite3.connect("car_dealership.db")
-        cursor = conn.cursor()
+        """ Load danh sách đơn hàng lên bảng """
+        self.tree.delete(*self.tree.get_children())  # Xóa bảng cũ
 
-        cursor.execute('''SELECT * FROM orders''')
-        orders = cursor.fetchall()
-
-        for row in self.tree.get_children():
-            self.tree.delete(row)
+        with sqlite3.connect("car_dealership.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM orders")
+            orders = cursor.fetchall()
 
         for order in orders:
             self.tree.insert("", "end", values=order)
 
-        conn.close()
+    def clear_entries(self):
+        """ Xóa dữ liệu trong ô nhập """
+        for entry in self.entries.values():
+            entry.delete(0, tk.END)
+        self.selected_order_id = None  # Xóa ID đơn hàng đang chọn
+
 
 class ContractManagement:
     def __init__(self, root):

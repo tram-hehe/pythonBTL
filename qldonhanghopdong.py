@@ -1,19 +1,17 @@
-import subprocess
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import sqlite3
-
+import pandas as pd
+from docx import Document
 
 class CarDealerManagementApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Quản lý Đơn hàng & Hợp đồng - Đại lý Xe hơi")
-        self.root.geometry("800x500")
+        self.root.title("Quản lý Đại lý Xe hơi")
+        self.root.geometry("600x400")
 
         self.create_database()
-        self.create_widgets()
-        self.load_data()
-        self.create_menu()
+        self.create_main_menu()
 
     def create_database(self):
         self.conn = sqlite3.connect("car_dealership.db")
@@ -22,150 +20,425 @@ class CarDealerManagementApp:
             CREATE TABLE IF NOT EXISTS orders (
                 order_id TEXT PRIMARY KEY,
                 customer TEXT NOT NULL,
+                address TEXT NOT NULL,
+                phone TEXT NOT NULL,
                 car_model TEXT NOT NULL,
-                date TEXT NOT NULL
+                invoice INTEGER NOT NULL,
+                staff TEXT NOT NULL,
+                status TEXT NOT NULL
             )
         ''')
+
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS contracts (
+                contract_id TEXT PRIMARY KEY,
+                order_id TEXT NOT NULL,
+                order_date TEXT NOT NULL,
+                delivery_date TEXT NOT NULL,
+                warranty TEXT NOT NULL,
+                FOREIGN KEY (order_id) REFERENCES orders(order_id)
+            )
+        ''')
+
         self.conn.commit()
-    def create_menu(self):
-        menu_bar = tk.Menu(self.root)
-        self.root.config(menu=menu_bar)
 
-        menu_bar.add_command(label="Quản lý Xe", command=self.create_car_frame)
-        search_var = tk.StringVar()  # Biến lưu từ khóa tìm kiếm
+    def create_main_menu(self):
+        title_label = tk.Label(self.root, text="Quản lý Đại lý Xe hơi", font=("Arial", 16, "bold"))
+        title_label.pack(pady=20)
 
-        menu_bar.add_command(label="Quản lý Khách hàng", command=self.create_customer_frame)
-        menu_bar.add_command(label="Quản lý Đơn hàng & Hợp đồng", command=self.create_orders_frame)
-        menu_bar.add_command(label="Quản lý Nhân viên & Phân quyền", command=self.create_staff_frame)
-        menu_bar.add_command(label="Báo cáo & Thống kê", command=self.create_reports_frame)
+        btn_orders = tk.Button(self.root, text="Quản lý Đơn hàng", command=self.open_order_management, width=30)
+        btn_orders.pack(pady=10)
 
-    def create_car_frame(self):
-        subprocess.run(["python", "manage_car.py"])
+        btn_contracts = tk.Button(self.root, text="Quản lý Hợp đồng", command=self.open_contract_management, width=30)
+        btn_contracts.pack(pady=10)
 
-    def create_customer_frame(self):
-        subprocess.run(["python", "customer_management.py"])
+    def open_order_management(self):
+        OrderManagement(self.root)
 
-    def create_orders_frame(self):
-        subprocess.run(["python", "qldonhanghopdong.py"])
+    def open_contract_management(self):
+        ContractManagement(self.root)
 
-    def create_staff_frame(self):
-        """Tạo giao diện quản lý nhân viên & phân quyền (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Quản lý Nhân viên & Phân quyền chưa được triển khai!")
 
-    def create_reports_frame(self):
-        """Tạo giao diện báo cáo & thống kê (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Báo cáo & Thống kê chưa được triển khai!")
+class OrderManagement:
+    def __init__(self, root):
+        self.window = tk.Toplevel(root)
+        self.window.title("Quản lý Đơn hàng")
+        self.window.geometry("1000x500")
+
+        self.selected_order_id = None  # Lưu ID đơn hàng đang chọn
+        self.create_widgets()
+        self.load_orders()
 
     def create_widgets(self):
-        # Label title
-        title_label = tk.Label(self.root, text="Quản lý Đơn hàng & Hợp đồng", font=("Arial", 16, "bold"))
-        title_label.pack(pady=10)
-
-        # Frame nhập dữ liệu
-        frame_input = tk.Frame(self.root)
+        frame_input = tk.Frame(self.window)
         frame_input.pack(pady=10)
 
-        tk.Label(frame_input, text="Mã Đơn Hàng:").grid(row=0, column=0, padx=5, pady=5)
-        self.entry_order_id = tk.Entry(frame_input)
-        self.entry_order_id.grid(row=0, column=1, padx=5, pady=5)
+        labels = ["Mã Đơn Hàng", "Khách Hàng", "Địa Chỉ", "Số Điện Thoại", "Mẫu Xe", "Hóa Đơn Giao Dịch",
+                  "Nhân viên phụ trách", "Trạng thái"]
+        self.entries = {}
 
-        tk.Label(frame_input, text="Khách Hàng:").grid(row=1, column=0, padx=5, pady=5)
-        self.entry_customer = tk.Entry(frame_input)
-        self.entry_customer.grid(row=1, column=1, padx=5, pady=5)
+        for i, text in enumerate(labels):
+            tk.Label(frame_input, text=text + ":").grid(row=i // 4, column=(i % 4) * 2, padx=5, pady=5)
+            entry = tk.Entry(frame_input)
+            entry.grid(row=i // 4, column=(i % 4) * 2 + 1, padx=5, pady=5)
+            self.entries[text] = entry
 
-        tk.Label(frame_input, text="Mẫu Xe:").grid(row=2, column=0, padx=5, pady=5)
-        self.entry_car_model = tk.Entry(frame_input)
-        self.entry_car_model.grid(row=2, column=1, padx=5, pady=5)
-
-        tk.Label(frame_input, text="Ngày Ký Hợp Đồng:").grid(row=3, column=0, padx=5, pady=5)
-        self.entry_date = tk.Entry(frame_input)
-        self.entry_date.grid(row=3, column=1, padx=5, pady=5)
-
-        # Buttons
-        frame_buttons = tk.Frame(self.root)
+        frame_buttons = tk.Frame(self.window)
         frame_buttons.pack(pady=10)
 
-        self.btn_add = tk.Button(frame_buttons, text="Thêm", command=self.add_order)
-        self.btn_add.grid(row=0, column=0, padx=5)
+        btn_add = tk.Button(frame_buttons, text="Thêm", command=self.add_order)
+        btn_add.grid(row=0, column=0, padx=5)
 
-        self.btn_update = tk.Button(frame_buttons, text="Sửa", command=self.update_order)
-        self.btn_update.grid(row=0, column=1, padx=5)
+        btn_update = tk.Button(frame_buttons, text="Sửa", command=self.update_order)
+        btn_update.grid(row=0, column=1, padx=5)
 
-        self.btn_delete = tk.Button(frame_buttons, text="Xóa", command=self.delete_order)
-        self.btn_delete.grid(row=0, column=2, padx=5)
+        btn_delete = tk.Button(frame_buttons, text="Xóa", command=self.delete_order)
+        btn_delete.grid(row=0, column=2, padx=5)
 
-        self.btn_search = tk.Button(frame_buttons, text="Tìm kiếm", command=self.search_order)
-        self.btn_search.grid(row=0, column=3, padx=5)
-
-        # Bảng hiển thị dữ liệu
-        self.tree = ttk.Treeview(self.root, columns=("order_id", "customer", "car_model", "date"), show='headings')
-        self.tree.heading("order_id", text="Mã Đơn Hàng")
-        self.tree.heading("customer", text="Khách Hàng")
-        self.tree.heading("car_model", text="Mẫu Xe")
-        self.tree.heading("date", text="Ngày Ký")
+        self.tree = ttk.Treeview(self.window, columns=labels, show='headings', selectmode="browse")
+        for label in labels:
+            self.tree.heading(label, text=label)
         self.tree.pack(pady=10, fill=tk.BOTH, expand=True)
 
+        self.tree.bind("<<TreeviewSelect>>", self.on_item_selected)
+
+    def on_item_selected(self, event):
+        """ Điền thông tin đơn hàng vào ô nhập khi chọn một dòng trong bảng """
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+
+        order_data = self.tree.item(selected_item[0], "values")
+
+        self.selected_order_id = order_data[0]  # Lưu mã đơn hàng để cập nhật
+        for i, key in enumerate(self.entries.keys()):
+            self.entries[key].delete(0, tk.END)
+            self.entries[key].insert(0, order_data[i])
+
     def add_order(self):
-        data = (self.entry_order_id.get(), self.entry_customer.get(), self.entry_car_model.get(), self.entry_date.get())
-        if any(not field for field in data):
-            messagebox.showwarning("Cảnh báo", "Vui lòng điền đầy đủ thông tin!")
+        """ Thêm đơn hàng mới vào database """
+        order_data = [entry.get() for entry in self.entries.values()]
+
+        if not all(order_data):
+            messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin!")
             return
 
         try:
-            self.cursor.execute("INSERT INTO orders VALUES (?, ?, ?, ?)", data)
-            self.conn.commit()
-            self.tree.insert("", tk.END, values=data)
+            with sqlite3.connect("car_dealership.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute('''INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', order_data)
+                conn.commit()
+
+            messagebox.showinfo("Thành công", "Đơn hàng đã được thêm!")
             self.clear_entries()
-        except sqlite3.IntegrityError:
-            messagebox.showerror("Lỗi", "Mã đơn hàng đã tồn tại!")
+            self.load_orders()
+
+        except sqlite3.DatabaseError as e:
+            messagebox.showerror("Lỗi", f"Không thể thêm đơn hàng: {e}")
 
     def update_order(self):
-        selected_item = self.tree.selection()
-        if not selected_item:
-            messagebox.showwarning("Cảnh báo", "Vui lòng chọn một đơn hàng để sửa!")
+        """ Cập nhật đơn hàng đã chọn """
+        if not self.selected_order_id:
+            messagebox.showerror("Lỗi", "Vui lòng chọn đơn hàng cần sửa!")
             return
 
-        data = (self.entry_customer.get(), self.entry_car_model.get(), self.entry_date.get(), self.entry_order_id.get())
-        self.cursor.execute("UPDATE orders SET customer=?, car_model=?, date=? WHERE order_id=?", data)
-        self.conn.commit()
-        self.load_data()
-        self.clear_entries()
+        order_data = [entry.get() for entry in self.entries.values()]
+        if not all(order_data):
+            messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin!")
+            return
+
+        try:
+            with sqlite3.connect("car_dealership.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute('''UPDATE orders 
+                                  SET customer = ?, address = ?, phone = ?, car_model = ?, invoice = ?, staff = ?, status = ?
+                                  WHERE order_id = ?''',
+                               (order_data[1], order_data[2], order_data[3], order_data[4], order_data[5], order_data[6], order_data[7], self.selected_order_id))
+                conn.commit()
+
+            messagebox.showinfo("Thành công", "Đơn hàng đã được cập nhật!")
+            self.clear_entries()
+            self.load_orders()
+
+        except sqlite3.DatabaseError as e:
+            messagebox.showerror("Lỗi", f"Không thể sửa đơn hàng: {e}")
 
     def delete_order(self):
+        """ Xóa đơn hàng được chọn """
         selected_item = self.tree.selection()
         if not selected_item:
-            messagebox.showwarning("Cảnh báo", "Vui lòng chọn một đơn hàng để xóa!")
+            messagebox.showerror("Lỗi", "Vui lòng chọn một đơn hàng để xóa!")
             return
 
-        order_id = self.tree.item(selected_item)['values'][0]
-        self.cursor.execute("DELETE FROM orders WHERE order_id=?", (order_id,))
-        self.conn.commit()
-        self.tree.delete(selected_item)
+        order_id = self.tree.item(selected_item[0], "values")[0]
 
-    def search_order(self):
-        search_id = self.entry_order_id.get()
-        for row in self.tree.get_children():
-            if self.tree.item(row)['values'][0] == search_id:
-                self.tree.selection_set(row)
-                self.tree.focus(row)
-                return
-        messagebox.showinfo("Thông báo", "Không tìm thấy đơn hàng!")
+        try:
+            with sqlite3.connect("car_dealership.db") as conn:
+                cursor = conn.cursor()
+                cursor.execute('''DELETE FROM orders WHERE order_id = ?''', (order_id,))
+                conn.commit()
 
-    def load_data(self):
-        for row in self.tree.get_children():
-            self.tree.delete(row)
-        self.cursor.execute("SELECT * FROM orders")
-        for row in self.cursor.fetchall():
-            self.tree.insert("", tk.END, values=row)
+            messagebox.showinfo("Thành công", "Đơn hàng đã được xóa!")
+            self.clear_entries()
+            self.load_orders()
+
+        except sqlite3.DatabaseError as e:
+            messagebox.showerror("Lỗi", f"Không thể xóa đơn hàng: {e}")
+
+    def load_orders(self):
+        """ Load danh sách đơn hàng lên bảng """
+        self.tree.delete(*self.tree.get_children())  # Xóa bảng cũ
+
+        with sqlite3.connect("car_dealership.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM orders")
+            orders = cursor.fetchall()
+
+        for order in orders:
+            self.tree.insert("", "end", values=order)
 
     def clear_entries(self):
-        self.entry_order_id.delete(0, tk.END)
-        self.entry_customer.delete(0, tk.END)
-        self.entry_car_model.delete(0, tk.END)
-        self.entry_date.delete(0, tk.END)
+        """ Xóa dữ liệu trong ô nhập """
+        for entry in self.entries.values():
+            entry.delete(0, tk.END)
+        self.selected_order_id = None  # Xóa ID đơn hàng đang chọn
+
+
+class ContractManagement:
+    def __init__(self, root):
+        self.window = tk.Toplevel(root)
+        self.window.title("Quản lý Hợp đồng")
+        self.window.geometry("1000x600")
+        self.create_widgets()
+        self.load_contracts()
+
+    def create_widgets(self):
+        frame_input = tk.Frame(self.window)
+        frame_input.pack(pady=10)
+
+        labels = ["Mã Hợp Đồng", "Mã Đơn Hàng", "Ngày Đặt Hàng", "Ngày Bàn Giao", "Phiếu Bảo Hành"]
+        self.entries = {}
+
+        # Tạo các ô nhập liệu
+        for i, text in enumerate(labels):
+            tk.Label(frame_input, text=text + ":").grid(row=i, column=0, padx=5, pady=5)
+            entry = tk.Entry(frame_input)
+            entry.grid(row=i, column=1, padx=5, pady=5)
+            self.entries[text] = entry
+
+        frame_buttons = tk.Frame(self.window)
+        frame_buttons.pack(pady=10)
+
+        # Thêm các nút điều khiển
+        btn_add = tk.Button(frame_buttons, text="Thêm", command=self.add_contract)
+        btn_add.grid(row=0, column=0, padx=5)
+
+        btn_update = tk.Button(frame_buttons, text="Sửa", command=self.update_contract)
+        btn_update.grid(row=0, column=1, padx=5)
+
+        btn_delete = tk.Button(frame_buttons, text="Xóa", command=self.delete_contract)
+        btn_delete.grid(row=0, column=2, padx=5)
+
+
+        # Tạo bảng Treeview để hiển thị hợp đồng
+        self.tree = ttk.Treeview(self.window, columns=(
+        "Mã Hợp Đồng", "Mã Đơn Hàng", "Ngày Đặt Hàng", "Ngày Bàn Giao", "Phiếu Bảo Hành"), show='headings')
+        for label in ["Mã Hợp Đồng", "Mã Đơn Hàng", "Ngày Đặt Hàng", "Ngày Bàn Giao", "Phiếu Bảo Hành"]:
+            self.tree.heading(label, text=label)
+        self.tree.pack(pady=10, fill=tk.BOTH, expand=True)
+
+    def add_contract(self):
+        # Lấy giá trị từ các ô nhập liệu
+        contract_id = self.entries["Mã Hợp Đồng"].get()
+        order_id = self.entries["Mã Đơn Hàng"].get()
+        order_date = self.entries["Ngày Đặt Hàng"].get()
+        delivery_date = self.entries["Ngày Bàn Giao"].get()
+        warranty = self.selected_warranty_file if hasattr(self, 'selected_warranty_file') else None
+
+        # Kiểm tra xem các ô nhập liệu có trống không
+        if not contract_id or not order_id or not order_date or not delivery_date or not warranty:
+            messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin và chọn phiếu bảo hành!")
+            return
+
+        try:
+            # Thêm hợp đồng vào cơ sở dữ liệu
+            conn = sqlite3.connect("car_dealership.db")
+            cursor = conn.cursor()
+
+            cursor.execute('''INSERT INTO contracts (contract_id, order_id, order_date, delivery_date, warranty)
+                              VALUES (?, ?, ?, ?, ?)''',
+                           (contract_id, order_id, order_date, delivery_date, warranty))
+
+            conn.commit()
+            conn.close()
+
+            messagebox.showinfo("Thành công", "Hợp đồng đã được thêm!")
+            self.load_contracts()  # Làm mới bảng sau khi thêm hợp đồng
+
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể thêm hợp đồng: {e}")
+
+    def update_contract(self):
+        # Lấy giá trị từ các ô nhập liệu
+        contract_id = self.entries["Mã Hợp Đồng"].get()
+        order_id = self.entries["Mã Đơn Hàng"].get()
+        order_date = self.entries["Ngày Đặt Hàng"].get()
+        delivery_date = self.entries["Ngày Bàn Giao"].get()
+        warranty = self.entries["Phiếu Bảo Hành"].get()
+
+        # Kiểm tra xem các ô nhập liệu có trống không
+        if not contract_id or not order_id or not order_date or not delivery_date or not warranty:
+            messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin!")
+            return
+
+        try:
+            # Cập nhật hợp đồng trong cơ sở dữ liệu
+            conn = sqlite3.connect("car_dealership.db")
+            cursor = conn.cursor()
+
+            cursor.execute('''UPDATE contracts SET order_id = ?, order_date = ?, delivery_date = ?, warranty = ?
+                              WHERE contract_id = ?''',
+                           (order_id, order_date, delivery_date, warranty, contract_id))
+
+            conn.commit()
+            conn.close()
+
+            messagebox.showinfo("Thành công", "Hợp đồng đã được cập nhật!")
+            self.load_contracts()  # Làm mới bảng sau khi cập nhật hợp đồng
+
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể cập nhật hợp đồng: {e}")
+
+    def delete_contract(self):
+        # Lấy Mã Hợp Đồng từ ô nhập liệu
+        contract_id = self.entries["Mã Hợp Đồng"].get()
+
+        if not contract_id:
+            messagebox.showerror("Lỗi", "Vui lòng nhập Mã Hợp Đồng để xóa!")
+            return
+
+        try:
+            # Xóa hợp đồng khỏi cơ sở dữ liệu
+            conn = sqlite3.connect("car_dealership.db")
+            cursor = conn.cursor()
+
+            cursor.execute('''DELETE FROM contracts WHERE contract_id = ?''', (contract_id,))
+
+            conn.commit()
+            conn.close()
+
+            messagebox.showinfo("Thành công", "Hợp đồng đã được xóa!")
+            self.load_contracts()  # Làm mới bảng sau khi xóa hợp đồng
+
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể xóa hợp đồng: {e}")
+
+    def import_contracts(self):
+        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")])
+        if not file_path:
+            return
+
+        try:
+            # Đọc dữ liệu từ file
+            if file_path.endswith(".csv"):
+                df = pd.read_csv(file_path)
+            else:
+                df = pd.read_excel(file_path)
+
+            # Xóa dữ liệu cũ trong bảng Treeview trước khi hiển thị dữ liệu mới
+            for row in self.tree.get_children():
+                self.tree.delete(row)
+
+            # Hiển thị dữ liệu từ file lên Treeview
+            for _, row in df.iterrows():
+                self.tree.insert("", "end", values=(row["Mã Hợp Đồng"], row["Mã Đơn Hàng"], row["Ngày Đặt Hàng"],
+                                                    row["Ngày Bàn Giao"], row["Phiếu Bảo Hành"]))
+
+            # Để dữ liệu đã hiển thị lên bảng Treeview, bây giờ mới tiến hành lưu vào cơ sở dữ liệu
+            conn = sqlite3.connect("car_dealership.db")
+            cursor = conn.cursor()
+
+            # Nhập dữ liệu vào cơ sở dữ liệu
+            for _, row in df.iterrows():
+                cursor.execute('''INSERT INTO contracts (contract_id, order_id, order_date, delivery_date, warranty)
+                                  VALUES (?, ?, ?, ?, ?)''',
+                               (row["Mã Hợp Đồng"], row["Mã Đơn Hàng"], row["Ngày Đặt Hàng"], row["Ngày Bàn Giao"],
+                                row["Phiếu Bảo Hành"]))
+
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Nhập dữ liệu", "Nhập hợp đồng từ file thành công!")
+
+        except Exception as e:
+            messagebox.showerror("Lỗi", f"Không thể nhập dữ liệu: {e}")
+
+    def create_widgets(self):
+        frame_input = tk.Frame(self.window)
+        frame_input.pack(pady=10)
+
+        labels = ["Mã Hợp Đồng", "Mã Đơn Hàng", "Ngày Đặt Hàng", "Ngày Bàn Giao", "Phiếu Bảo Hành"]
+        self.entries = {}
+
+        # Tạo các ô nhập liệu
+        for i, text in enumerate(labels[:-1]):  # Loại bỏ Phiếu Bảo Hành khỏi các entry thông thường
+            tk.Label(frame_input, text=text + ":").grid(row=i, column=0, padx=5, pady=5)
+            entry = tk.Entry(frame_input)
+            entry.grid(row=i, column=1, padx=5, pady=5)
+            self.entries[text] = entry
+
+        # Thêm phần chọn file cho Phiếu Bảo Hành
+        tk.Label(frame_input, text="Phiếu Bảo Hành:").grid(row=len(labels) - 1, column=0, padx=5, pady=5)
+        self.warranty_file_button = tk.Button(frame_input, text="Chọn File", command=self.select_warranty_file)
+        self.warranty_file_button.grid(row=len(labels) - 1, column=1, padx=5, pady=5)
+        self.warranty_file_label = tk.Label(frame_input, text="Chưa chọn file")
+        self.warranty_file_label.grid(row=len(labels) - 1, column=2, padx=5, pady=5)
+
+        frame_buttons = tk.Frame(self.window)
+        frame_buttons.pack(pady=10)
+
+        btn_add = tk.Button(frame_buttons, text="Thêm", command=self.add_contract)
+        btn_add.grid(row=0, column=0, padx=5)
+
+        btn_update = tk.Button(frame_buttons, text="Sửa", command=self.update_contract)
+        btn_update.grid(row=0, column=1, padx=5)
+
+        btn_delete = tk.Button(frame_buttons, text="Xóa", command=self.delete_contract)
+        btn_delete.grid(row=0, column=2, padx=5)
+
+        # Tạo bảng Treeview để hiển thị hợp đồng
+        self.tree = ttk.Treeview(self.window, columns=(
+        "Mã Hợp Đồng", "Mã Đơn Hàng", "Ngày Đặt Hàng", "Ngày Bàn Giao", "Phiếu Bảo Hành"), show='headings')
+        for label in ["Mã Hợp Đồng", "Mã Đơn Hàng", "Ngày Đặt Hàng", "Ngày Bàn Giao", "Phiếu Bảo Hành"]:
+            self.tree.heading(label, text=label)
+        self.tree.pack(pady=10, fill=tk.BOTH, expand=True)
+
+    def select_warranty_file(self):
+        # Mở hộp thoại chọn file
+        file_path = filedialog.askopenfilename(filetypes=[("PDF files", "*.pdf"), ("Word files", "*.docx")])
+        if file_path:
+            self.selected_warranty_file = file_path
+            self.warranty_file_label.config(text=file_path.split("/")[-1])  # Hiển thị tên file trên giao diện
+
+    def load_contracts(self):
+        conn = sqlite3.connect("car_dealership.db")
+        cursor = conn.cursor()
+
+        cursor.execute('''SELECT * FROM contracts''')
+        contracts = cursor.fetchall()
+
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+
+        for contract in contracts:
+            # Hiển thị đường dẫn file phiếu bảo hành hoặc tên file
+            warranty = contract[4] if contract[4] else "Chưa có file"
+            self.tree.insert("", "end", values=(contract[0], contract[1], contract[2], contract[3], warranty))
+
+        conn.close()
 
 
 if __name__ == "__main__":
     root = tk.Tk()
     app = CarDealerManagementApp(root)
     root.mainloop()
+

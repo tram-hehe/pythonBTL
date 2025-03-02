@@ -49,11 +49,11 @@ class CustomerManager:
         subprocess.run(["python", "manage_car.py"])
 
     def create_customer_frame(self):
-        subprocess.run(["python", "customer_management.py"])
+        self.switch_frame(self.create_widgets)
 
     def create_orders_frame(self):
-        """Tạo giao diện quản lý đơn hàng & hợp đồng (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Quản lý Đơn hàng & Hợp đồng chưa được triển khai!")
+        subprocess.run(["python", "qldonhanghopdong.py"])
+
 
     def create_staff_frame(self):
         """Tạo giao diện quản lý nhân viên & phân quyền (chưa triển khai)"""
@@ -109,7 +109,6 @@ class CustomerManager:
         self.address_entry.insert(0, customer_data[4])
 
     def create_widgets(self):
-        """Tạo giao diện người dùng"""
         ttk.Label(self.root, text="Quản Lý Khách Hàng", font=("Arial", 16)).pack(pady=10)
 
         # Form nhập dữ liệu

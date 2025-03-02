@@ -1,5 +1,4 @@
 import sqlite3
-import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -8,19 +7,18 @@ class CustomerManager:
     def __init__(self, root):
         self.root = root
         self.root.title("Quản lý Khách hàng")
+        self.root.geometry("900x500")
 
-        # 🔹 Thêm các biến StringVar để lưu dữ liệu nhập từ form
+        # Các biến lưu giá trị
         self.name_var = tk.StringVar()
         self.phone_var = tk.StringVar()
         self.email_var = tk.StringVar()
         self.address_var = tk.StringVar()
 
         self.create_database()
-        self.create_menu()
         self.create_widgets()
 
     def create_database(self):
-        """Tạo cơ sở dữ liệu và bảng customers nếu chưa có"""
         self.conn = sqlite3.connect("car_dealership.db")
         self.cursor = self.conn.cursor()
         self.cursor.execute('''
@@ -34,114 +32,26 @@ class CustomerManager:
         ''')
         self.conn.commit()
 
-    def create_menu(self):
-        """Tạo thanh menu"""
-        menu_bar = tk.Menu(self.root)
-        self.root.config(menu=menu_bar)
-
-        menu_bar.add_command(label="Quản lý Xe", command=self.create_car_frame)
-        menu_bar.add_command(label="Quản lý Khách hàng", command=self.create_customer_frame)
-        menu_bar.add_command(label="Quản lý Đơn hàng & Hợp đồng", command=self.create_orders_frame)
-        menu_bar.add_command(label="Quản lý Nhân viên & Phân quyền", command=self.create_staff_frame)
-        menu_bar.add_command(label="Báo cáo & Thống kê", command=self.create_reports_frame)
-
-    def create_car_frame(self):
-        subprocess.run(["python", "manage_car.py"])
-
-    def create_customer_frame(self):
-        self.switch_frame(self.create_widgets)
-
-    def create_orders_frame(self):
-        subprocess.run(["python", "qldonhanghopdong.py"])
-
-
-    def create_staff_frame(self):
-        """Tạo giao diện quản lý nhân viên & phân quyền (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Quản lý Nhân viên & Phân quyền chưa được triển khai!")
-
-    def create_reports_frame(self):
-        """Tạo giao diện báo cáo & thống kê (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Báo cáo & Thống kê chưa được triển khai!")
-
-    def update_customer(self):
-        selected_item = self.customer_table.selection()
-        if not selected_item:
-            messagebox.showwarning("Lỗi", "Vui lòng chọn khách hàng để sửa!")
-            return
-
-        customer_id = self.customer_table.item(selected_item)['values'][0]
-        name = self.name_entry.get().strip()
-        phone = self.phone_entry.get().strip()
-        email = self.email_entry.get().strip() or "N/A"  # Nếu email trống, đặt là "N/A"
-        address = self.address_entry.get().strip() or "N/A"
-
-        if not name or not phone:
-            messagebox.showwarning("Lỗi", "Vui lòng nhập đầy đủ thông tin!")
-            return
-
-        self.cursor.execute("UPDATE customers SET name=?, phone=?, email=?, address=? WHERE id=?",
-                            (name, phone, email, address, customer_id))
-        self.conn.commit()
-        self.load_customers()
-        self.clear_form()
-
-    def select_customer(self, event):
-        selected_item = self.customer_table.selection()
-        if not selected_item:
-            return
-
-        item = self.customer_table.item(selected_item)
-        customer_data = item['values']
-
-        if len(customer_data) < 5:
-            return
-
-        self.name_entry.delete(0, tk.END)
-        self.name_entry.insert(0, customer_data[1])
-
-        self.phone_entry.delete(0, tk.END)
-        self.phone_entry.insert(0, customer_data[2])
-
-        self.email_entry.delete(0, tk.END)
-        self.email_entry.insert(0, customer_data[3])
-
-        self.address_entry.delete(0, tk.END)
-        self.address_entry.insert(0, customer_data[4])
-
     def create_widgets(self):
-        ttk.Label(self.root, text="Quản Lý Khách Hàng", font=("Arial", 16)).pack(pady=10)
+        search_frame = ttk.LabelFrame(self.root, text="Tìm kiếm & Lọc khách hàng")
+        search_frame.pack(padx=10, pady=10, fill="x")
 
-        # Form nhập dữ liệu
-        form_frame = ttk.Frame(self.root)
-        form_frame.pack(pady=10)
+        ttk.Label(search_frame, text="Họ tên:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Entry(search_frame, textvariable=self.name_var, width=20).grid(row=0, column=1, padx=5, pady=5)
 
-        ttk.Label(form_frame, text="Họ và Tên:").grid(row=0, column=0, padx=5, pady=5)
-        self.name_entry = ttk.Entry(form_frame)
-        self.name_entry.grid(row=0, column=1, padx=5, pady=5)
+        ttk.Label(search_frame, text="Số điện thoại:").grid(row=0, column=2, padx=5, pady=5, sticky="w")
+        ttk.Entry(search_frame, textvariable=self.phone_var, width=15).grid(row=0, column=3, padx=5, pady=5)
 
-        ttk.Label(form_frame, text="Số Điện Thoại:").grid(row=1, column=0, padx=5, pady=5)
-        self.phone_entry = ttk.Entry(form_frame)
-        self.phone_entry.grid(row=1, column=1, padx=5, pady=5)
+        ttk.Label(search_frame, text="Email:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Entry(search_frame, textvariable=self.email_var, width=20).grid(row=1, column=1, padx=5, pady=5)
 
-        ttk.Label(form_frame, text="Email:").grid(row=2, column=0, padx=5, pady=5)
-        self.email_entry = ttk.Entry(form_frame)
-        self.email_entry.grid(row=2, column=1, padx=5, pady=5)
+        ttk.Label(search_frame, text="Địa chỉ:").grid(row=1, column=2, padx=5, pady=5, sticky="w")
+        ttk.Entry(search_frame, textvariable=self.address_var, width=30).grid(row=1, column=3, padx=5, pady=5)
 
-        ttk.Label(form_frame, text="Địa Chỉ:").grid(row=3, column=0, padx=5, pady=5)
-        self.address_entry = ttk.Entry(form_frame)
-        self.address_entry.grid(row=3, column=1, padx=5, pady=5)
+        ttk.Button(search_frame, text="Tìm kiếm", command=self.search_customer).grid(row=0, column=4, padx=5, pady=5)
+        ttk.Button(search_frame, text="Làm mới", command=self.load_customers).grid(row=1, column=4, padx=5, pady=5)
 
-        # Nút chức năng
-        button_frame = ttk.Frame(self.root)
-        button_frame.pack(pady=10)
-
-        ttk.Button(button_frame, text="Thêm", command=self.add_customer).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Sửa", command=self.update_customer).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Xóa", command=self.delete_customer).pack(side="left", padx=5)
-
-        # Bảng danh sách khách hàng
-        self.customer_table = ttk.Treeview(self.root, columns=("ID", "Họ Tên", "SĐT", "Email", "Địa Chỉ"),
-                                           show="headings")
+        self.customer_table = ttk.Treeview(self.root, columns=("ID", "Họ Tên", "SĐT", "Email", "Địa Chỉ"), show="headings")
         self.customer_table.heading("ID", text="ID")
         self.customer_table.heading("Họ Tên", text="Họ Tên")
         self.customer_table.heading("SĐT", text="SĐT")
@@ -149,63 +59,103 @@ class CustomerManager:
         self.customer_table.heading("Địa Chỉ", text="Địa Chỉ")
         self.customer_table.pack(pady=10, fill="both", expand=True)
 
-        self.customer_table.bind("<<TreeviewSelect>>", self.select_customer)
+        self.customer_table.bind("<ButtonRelease-1>", self.select_customer)
+
+        button_frame = ttk.Frame(self.root)
+        button_frame.pack(pady=10)
+
+        ttk.Button(button_frame, text="Thêm", command=self.add_customer).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Sửa", command=self.update_customer).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Xóa", command=self.delete_customer).pack(side="left", padx=5)
 
         self.load_customers()
+
+    def select_customer(self, event):
+        selected_item = self.customer_table.focus()
+        if selected_item:
+            values = self.customer_table.item(selected_item, 'values')
+            self.name_var.set(values[1])
+            self.phone_var.set(values[2])
+            self.email_var.set(values[3])
+            self.address_var.set(values[4])
 
     def add_customer(self):
-        name = self.name_entry.get().strip()
-        phone = self.phone_entry.get().strip()
-        email = self.email_entry.get().strip()
-        address = self.address_entry.get().strip()
-
-        if not name or not phone or not email or not address:
-            messagebox.showwarning("Cảnh báo", "Vui lòng nhập đầy đủ thông tin")
+        name, phone, email, address = self.name_var.get(), self.phone_var.get(), self.email_var.get(), self.address_var.get()
+        if not name or not phone:
+            messagebox.showwarning("Lỗi", "Họ tên và SĐT không được để trống!")
             return
-
-        # Thêm khách hàng vào cơ sở dữ liệu
-        self.cursor.execute("INSERT INTO customers (name, phone, email, address) VALUES (?, ?, ?, ?)",
-                            (name, phone, email, address))
+        self.cursor.execute("INSERT INTO customers (name, phone, email, address) VALUES (?, ?, ?, ?)", (name, phone, email, address))
         self.conn.commit()
-        messagebox.showinfo("Thành công", "Thêm khách hàng thành công!")
         self.load_customers()
-        self.clear_form()  # Xóa form sau khi thêm khách hàng
+        messagebox.showinfo("Thành công", "Thêm khách hàng thành công!")
+
+    def update_customer(self):
+        selected_item = self.customer_table.focus()
+        if not selected_item:
+            messagebox.showwarning("Lỗi", "Vui lòng chọn khách hàng để sửa!")
+            return
+        values = self.customer_table.item(selected_item, 'values')
+        customer_id = values[0]
+        self.cursor.execute("UPDATE customers SET name=?, phone=?, email=?, address=? WHERE id=?",
+                            (self.name_var.get(), self.phone_var.get(), self.email_var.get(), self.address_var.get(),
+                             customer_id))
+
+        self.conn.commit()
+        self.load_customers()
+        messagebox.showinfo("Thành công", "Cập nhật khách hàng thành công!")
 
     def delete_customer(self):
-        """Xóa khách hàng"""
-        selected_item = self.customer_table.selection()
+        selected_item = self.customer_table.focus()
         if not selected_item:
             messagebox.showwarning("Lỗi", "Vui lòng chọn khách hàng để xóa!")
             return
+        values = self.customer_table.item(selected_item, 'values')
+        customer_id = values[0]
+        confirm = messagebox.askyesno("Xác nhận", "Bạn có chắc chắn muốn xóa khách hàng này?")
+        if confirm:
+            self.cursor.execute("DELETE FROM customers WHERE id=?", (customer_id,))
+            self.conn.commit()
+            self.load_customers()
+            messagebox.showinfo("Thành công", "Xóa khách hàng thành công!")
 
-        customer_id = self.customer_table.item(selected_item)['values'][0]
-        self.cursor.execute("DELETE FROM customers WHERE id=?", (customer_id,))
-        self.conn.commit()
-        self.load_customers()
-        self.clear_form()
+    def search_customer(self):
+        query = "SELECT * FROM customers WHERE 1=1"
+        params = []
 
-    def clear_form(self):
-        """Xóa dữ liệu trên form nhập"""
-        self.name_entry.delete(0, tk.END)
-        self.phone_entry.delete(0, tk.END)
-        self.email_entry.delete(0, tk.END)
-        self.address_entry.delete(0, tk.END)
+        if self.name_var.get():
+            query += " AND name LIKE ?"
+            params.append(f"%{self.name_var.get()}%")
+
+        if self.phone_var.get():
+            query += " AND phone LIKE ?"
+            params.append(f"%{self.phone_var.get()}%")
+
+        if self.email_var.get():
+            query += " AND email LIKE ?"
+            params.append(f"%{self.email_var.get()}%")
+
+        if self.address_var.get():
+            query += " AND address LIKE ?"
+            params.append(f"%{self.address_var.get()}%")
+
+        self.cursor.execute(query, params)
+        results = self.cursor.fetchall()
+
+        self.customer_table.delete(*self.customer_table.get_children())
+        for row in results:
+            self.customer_table.insert("", "end", values=row)
 
     def load_customers(self):
-        """Tải danh sách khách hàng"""
         self.customer_table.delete(*self.customer_table.get_children())
         self.cursor.execute("SELECT * FROM customers")
         for row in self.cursor.fetchall():
             self.customer_table.insert("", "end", values=row)
 
-
     def close_connection(self):
-        """Đóng kết nối SQLite khi thoát ứng dụng"""
         self.conn.close()
-        self.root.destroy()  # Đóng cửa sổ Tkinter
+        self.root.destroy()
 
 
-# Gọi sự kiện đóng kết nối khi đóng ứng dụng
 if __name__ == "__main__":
     root = tk.Tk()
     app = CustomerManager(root)

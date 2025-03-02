@@ -31,6 +31,8 @@ class MainApp:
             subprocess.run(["python", "manage_car.py"])  # Mở manage_car.py
         elif button_name == "Quản lý Khách Hàng":
             subprocess.run(["python", "customer_management.py"])
+        elif button_name == "Quản lý Nhân Viên":
+            subprocess.run(["python", "customer_management.py"])
         else:
             print(f"Bạn đã nhấn vào: {button_name}")
 

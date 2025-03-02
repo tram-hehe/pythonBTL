@@ -1,5 +1,4 @@
 import sqlite3
-import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -7,14 +6,7 @@ from tkinter import ttk, messagebox
 class CustomerManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Quản lý Khách hàng")
-
-        # 🔹 Thêm các biến StringVar để lưu dữ liệu nhập từ form
-        self.name_var = tk.StringVar()
-        self.phone_var = tk.StringVar()
-        self.email_var = tk.StringVar()
-        self.address_var = tk.StringVar()
-
+        self.root.title("Quản Lý Khách Hàng")
         self.create_database()
         self.create_menu()
         self.create_widgets()
@@ -44,69 +36,6 @@ class CustomerManager:
         menu_bar.add_command(label="Quản lý Đơn hàng & Hợp đồng", command=self.create_orders_frame)
         menu_bar.add_command(label="Quản lý Nhân viên & Phân quyền", command=self.create_staff_frame)
         menu_bar.add_command(label="Báo cáo & Thống kê", command=self.create_reports_frame)
-
-    def create_car_frame(self):
-        subprocess.run(["python", "manage_car.py"])
-
-    def create_customer_frame(self):
-        subprocess.run(["python", "customer_management.py"])
-
-    def create_orders_frame(self):
-        """Tạo giao diện quản lý đơn hàng & hợp đồng (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Quản lý Đơn hàng & Hợp đồng chưa được triển khai!")
-
-    def create_staff_frame(self):
-        """Tạo giao diện quản lý nhân viên & phân quyền (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Quản lý Nhân viên & Phân quyền chưa được triển khai!")
-
-    def create_reports_frame(self):
-        """Tạo giao diện báo cáo & thống kê (chưa triển khai)"""
-        messagebox.showinfo("Thông báo", "Chức năng Báo cáo & Thống kê chưa được triển khai!")
-
-    def update_customer(self):
-        selected_item = self.customer_table.selection()
-        if not selected_item:
-            messagebox.showwarning("Lỗi", "Vui lòng chọn khách hàng để sửa!")
-            return
-
-        customer_id = self.customer_table.item(selected_item)['values'][0]
-        name = self.name_entry.get().strip()
-        phone = self.phone_entry.get().strip()
-        email = self.email_entry.get().strip() or "N/A"  # Nếu email trống, đặt là "N/A"
-        address = self.address_entry.get().strip() or "N/A"
-
-        if not name or not phone:
-            messagebox.showwarning("Lỗi", "Vui lòng nhập đầy đủ thông tin!")
-            return
-
-        self.cursor.execute("UPDATE customers SET name=?, phone=?, email=?, address=? WHERE id=?",
-                            (name, phone, email, address, customer_id))
-        self.conn.commit()
-        self.load_customers()
-        self.clear_form()
-
-    def select_customer(self, event):
-        selected_item = self.customer_table.selection()
-        if not selected_item:
-            return
-
-        item = self.customer_table.item(selected_item)
-        customer_data = item['values']
-
-        if len(customer_data) < 5:
-            return
-
-        self.name_entry.delete(0, tk.END)
-        self.name_entry.insert(0, customer_data[1])
-
-        self.phone_entry.delete(0, tk.END)
-        self.phone_entry.insert(0, customer_data[2])
-
-        self.email_entry.delete(0, tk.END)
-        self.email_entry.insert(0, customer_data[3])
-
-        self.address_entry.delete(0, tk.END)
-        self.address_entry.insert(0, customer_data[4])
 
     def create_widgets(self):
         """Tạo giao diện người dùng"""
@@ -155,60 +84,98 @@ class CustomerManager:
         self.load_customers()
 
     def add_customer(self):
+        """Thêm khách hàng mới vào cơ sở dữ liệu"""
         name = self.name_entry.get().strip()
         phone = self.phone_entry.get().strip()
         email = self.email_entry.get().strip()
         address = self.address_entry.get().strip()
 
-        if not name or not phone or not email or not address:
-            messagebox.showwarning("Cảnh báo", "Vui lòng nhập đầy đủ thông tin")
+        if not name or not phone:
+            messagebox.showwarning("Lỗi", "Vui lòng nhập đầy đủ thông tin bắt buộc!")
             return
 
-        # Thêm khách hàng vào cơ sở dữ liệu
         self.cursor.execute("INSERT INTO customers (name, phone, email, address) VALUES (?, ?, ?, ?)",
                             (name, phone, email, address))
         self.conn.commit()
-        messagebox.showinfo("Thành công", "Thêm khách hàng thành công!")
         self.load_customers()
-        self.clear_form()  # Xóa form sau khi thêm khách hàng
+        self.clear_form()
+
+    def load_customers(self):
+        """Tải danh sách khách hàng lên bảng"""
+        self.customer_table.delete(*self.customer_table.get_children())
+        self.cursor.execute("SELECT * FROM customers")
+        for row in self.cursor.fetchall():
+            self.customer_table.insert("", "end", values=row)
+
+    def create_car_frame(self):
+        messagebox.showinfo("Thông báo", "Chức năng Quản lý Xe chưa được triển khai!")
+
+    def create_orders_frame(self):
+        messagebox.showinfo("Thông báo", "Chức năng Quản lý Đơn hàng & Hợp đồng chưa được triển khai!")
+
+    def create_staff_frame(self):
+        messagebox.showinfo("Thông báo", "Chức năng Quản lý Nhân viên & Phân quyền chưa được triển khai!")
+
+    def create_reports_frame(self):
+        messagebox.showinfo("Thông báo", "Chức năng Báo cáo & Thống kê chưa được triển khai!")
+
+    def create_customer_frame(self):
+        self.create_widgets()  # Gọi lại hàm tạo giao diện quản lý khách hàng
+
+    def update_customer(self):
+        """Cập nhật thông tin khách hàng"""
+        selected_item = self.customer_table.selection()
+        if not selected_item:
+            messagebox.showwarning("Lỗi", "Vui lòng chọn khách hàng để sửa!")
+            return
+
+        customer_id = self.customer_table.item(selected_item)['values'][0]
+        name = self.name_entry.get().strip()
+        phone = self.phone_entry.get().strip()
+        email = self.email_entry.get().strip()
+        address = self.address_entry.get().strip()
+
+        if not name or not phone:
+            messagebox.showwarning("Lỗi", "Vui lòng nhập đầy đủ thông tin!")
+            return
+
+        self.cursor.execute("UPDATE customers SET name=?, phone=?, email=?, address=? WHERE id=?",
+                            (name, phone, email, address, customer_id))
+        self.conn.commit()
+        self.load_customers()
+        self.clear_form()
 
     def delete_customer(self):
-        """Xóa khách hàng"""
+        """Xóa khách hàng khỏi cơ sở dữ liệu"""
         selected_item = self.customer_table.selection()
         if not selected_item:
             messagebox.showwarning("Lỗi", "Vui lòng chọn khách hàng để xóa!")
             return
 
         customer_id = self.customer_table.item(selected_item)['values'][0]
-        self.cursor.execute("DELETE FROM customers WHERE id=?", (customer_id,))
-        self.conn.commit()
-        self.load_customers()
+        confirm = messagebox.askyesno("Xác nhận", "Bạn có chắc chắn muốn xóa khách hàng này?")
+        if confirm:
+            self.cursor.execute("DELETE FROM customers WHERE id=?", (customer_id,))
+            self.conn.commit()
+            self.load_customers()
+            self.clear_form()
+
+    def select_customer(self, event):
+        """Lấy thông tin khách hàng khi chọn dòng trong bảng"""
+        selected_item = self.customer_table.selection()
+        if not selected_item:
+            return
+
+        customer = self.customer_table.item(selected_item)['values']
         self.clear_form()
 
-    def clear_form(self):
-        """Xóa dữ liệu trên form nhập"""
-        self.name_entry.delete(0, tk.END)
-        self.phone_entry.delete(0, tk.END)
-        self.email_entry.delete(0, tk.END)
-        self.address_entry.delete(0, tk.END)
-
-    def load_customers(self):
-        """Tải danh sách khách hàng"""
-        self.customer_table.delete(*self.customer_table.get_children())
-        self.cursor.execute("SELECT * FROM customers")
-        for row in self.cursor.fetchall():
-            self.customer_table.insert("", "end", values=row)
+        self.name_entry.insert(0, customer[1])
+        self.phone_entry.insert(0, customer[2])
+        self.email_entry.insert(0, customer[3])
+        self.address_entry.insert(0, customer[4])
 
 
-    def close_connection(self):
-        """Đóng kết nối SQLite khi thoát ứng dụng"""
-        self.conn.close()
-        self.root.destroy()  # Đóng cửa sổ Tkinter
-
-
-# Gọi sự kiện đóng kết nối khi đóng ứng dụng
 if __name__ == "__main__":
     root = tk.Tk()
     app = CustomerManager(root)
-    root.protocol("WM_DELETE_WINDOW", app.close_connection)
     root.mainloop()

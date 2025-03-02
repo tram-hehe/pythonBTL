@@ -1,3 +1,4 @@
+import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import sqlite3
@@ -276,7 +277,8 @@ class CarDealershipApp:
         ttk.Button(form_window, text="Lưu", command=save_car).grid(row=len(fields) + 1, column=0, columnspan=2, pady=10)
 
     def create_customer_frame(self):
-        self.switch_frame(self.build_customer_frame)
+        subprocess.run(["python", "customer_management.py"])
+
 
     def build_customer_frame(self):
         ttk.Label(self.current_frame, text="Quản lý Khách hàng", font=("Arial", 14)).pack(pady=10)

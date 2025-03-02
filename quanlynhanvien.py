@@ -113,9 +113,9 @@ class EmployeeManagementApp:
 
         cursor.execute("""
             SELECT e.employee_id, e.name, e.gender, e.address, e.phone, e.position, 
-                   COALESCE(SUM(s.amount), 0) AS total_sales
+                   COALESCE(SUM(CAST(o.invoice AS REAL)), 0) AS total_sales
             FROM employees e
-            LEFT JOIN sales s ON e.employee_id = s.employee_id
+            LEFT JOIN orders o ON e.employee_id = o.staff
             GROUP BY e.employee_id, e.name, e.gender, e.address, e.phone, e.position
         """)
 

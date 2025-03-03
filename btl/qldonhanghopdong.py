@@ -278,25 +278,53 @@ class ContractManagement:
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể thêm hợp đồng: {e}")
 
+    def on_tree_select(self, event):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+        item = self.tree.item(selected_item)
+        values = item['values']
+
+        # Gán dữ liệu vào ô nhập
+        self.entries["Mã Hợp Đồng"].delete(0, tk.END)
+        self.entries["Mã Hợp Đồng"].insert(0, values[0])
+
+        self.entries["Mã Đơn Hàng"].delete(0, tk.END)
+        self.entries["Mã Đơn Hàng"].insert(0, values[1])
+
+        self.entries["Ngày Đặt Hàng"].delete(0, tk.END)
+        self.entries["Ngày Đặt Hàng"].insert(0, values[2])
+
+        self.entries["Ngày Bàn Giao"].delete(0, tk.END)
+        self.entries["Ngày Bàn Giao"].insert(0, values[3])
+
+        self.selected_warranty_file = values[4]  # Lưu phiếu bảo hành
+        self.warranty_file_label.config(text=values[4])
+
     def update_contract(self):
-        # Lấy giá trị từ các ô nhập liệu
-        contract_id = self.entries["Mã Hợp Đồng"].get()
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showerror("Lỗi", "Vui lòng chọn hợp đồng để sửa!")
+            return
+
+        item = self.tree.item(selected_item)
+        contract_id = item['values'][0]  # Lấy Mã Hợp Đồng từ bảng
+
         order_id = self.entries["Mã Đơn Hàng"].get()
         order_date = self.entries["Ngày Đặt Hàng"].get()
         delivery_date = self.entries["Ngày Bàn Giao"].get()
-        warranty = self.entries["Phiếu Bảo Hành"].get()
+        warranty = self.selected_warranty_file if hasattr(self, 'selected_warranty_file') else item['values'][4]
 
-        # Kiểm tra xem các ô nhập liệu có trống không
-        if not contract_id or not order_id or not order_date or not delivery_date or not warranty:
+        if not order_id or not order_date or not delivery_date:
             messagebox.showerror("Lỗi", "Vui lòng điền đầy đủ thông tin!")
             return
 
         try:
-            # Cập nhật hợp đồng trong cơ sở dữ liệu
             conn = sqlite3.connect("car_dealership.db")
             cursor = conn.cursor()
 
-            cursor.execute('''UPDATE contracts SET order_id = ?, order_date = ?, delivery_date = ?, warranty = ?
+            cursor.execute('''UPDATE contracts 
+                              SET order_id = ?, order_date = ?, delivery_date = ?, warranty = ?
                               WHERE contract_id = ?''',
                            (order_id, order_date, delivery_date, warranty, contract_id))
 
@@ -304,73 +332,35 @@ class ContractManagement:
             conn.close()
 
             messagebox.showinfo("Thành công", "Hợp đồng đã được cập nhật!")
-            self.load_contracts()  # Làm mới bảng sau khi cập nhật hợp đồng
-
+            self.load_contracts()
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể cập nhật hợp đồng: {e}")
 
     def delete_contract(self):
-        # Lấy Mã Hợp Đồng từ ô nhập liệu
-        contract_id = self.entries["Mã Hợp Đồng"].get()
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showerror("Lỗi", "Vui lòng chọn hợp đồng để xóa!")
+            return
 
-        if not contract_id:
-            messagebox.showerror("Lỗi", "Vui lòng nhập Mã Hợp Đồng để xóa!")
+        item = self.tree.item(selected_item)
+        contract_id = item['values'][0]
+
+        # Hiện hộp thoại xác nhận
+        confirm = messagebox.askyesno("Xác nhận", f"Bạn có chắc chắn muốn xóa hợp đồng {contract_id} không?")
+        if not confirm:
             return
 
         try:
-            # Xóa hợp đồng khỏi cơ sở dữ liệu
             conn = sqlite3.connect("car_dealership.db")
             cursor = conn.cursor()
-
-            cursor.execute('''DELETE FROM contracts WHERE contract_id = ?''', (contract_id,))
-
+            cursor.execute('DELETE FROM contracts WHERE contract_id = ?', (contract_id,))
             conn.commit()
             conn.close()
 
             messagebox.showinfo("Thành công", "Hợp đồng đã được xóa!")
-            self.load_contracts()  # Làm mới bảng sau khi xóa hợp đồng
-
+            self.load_contracts()  # Cập nhật lại danh sách
         except Exception as e:
             messagebox.showerror("Lỗi", f"Không thể xóa hợp đồng: {e}")
-
-    def import_contracts(self):
-        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")])
-        if not file_path:
-            return
-
-        try:
-            # Đọc dữ liệu từ file
-            if file_path.endswith(".csv"):
-                df = pd.read_csv(file_path)
-            else:
-                df = pd.read_excel(file_path)
-
-            # Xóa dữ liệu cũ trong bảng Treeview trước khi hiển thị dữ liệu mới
-            for row in self.tree.get_children():
-                self.tree.delete(row)
-
-            # Hiển thị dữ liệu từ file lên Treeview
-            for _, row in df.iterrows():
-                self.tree.insert("", "end", values=(row["Mã Hợp Đồng"], row["Mã Đơn Hàng"], row["Ngày Đặt Hàng"],
-                                                    row["Ngày Bàn Giao"], row["Phiếu Bảo Hành"]))
-
-            # Để dữ liệu đã hiển thị lên bảng Treeview, bây giờ mới tiến hành lưu vào cơ sở dữ liệu
-            conn = sqlite3.connect("car_dealership.db")
-            cursor = conn.cursor()
-
-            # Nhập dữ liệu vào cơ sở dữ liệu
-            for _, row in df.iterrows():
-                cursor.execute('''INSERT INTO contracts (contract_id, order_id, order_date, delivery_date, warranty)
-                                  VALUES (?, ?, ?, ?, ?)''',
-                               (row["Mã Hợp Đồng"], row["Mã Đơn Hàng"], row["Ngày Đặt Hàng"], row["Ngày Bàn Giao"],
-                                row["Phiếu Bảo Hành"]))
-
-            conn.commit()
-            conn.close()
-            messagebox.showinfo("Nhập dữ liệu", "Nhập hợp đồng từ file thành công!")
-
-        except Exception as e:
-            messagebox.showerror("Lỗi", f"Không thể nhập dữ liệu: {e}")
 
     def create_widgets(self):
         frame_input = tk.Frame(self.window)
@@ -411,6 +401,7 @@ class ContractManagement:
         for label in ["Mã Hợp Đồng", "Mã Đơn Hàng", "Ngày Đặt Hàng", "Ngày Bàn Giao", "Phiếu Bảo Hành"]:
             self.tree.heading(label, text=label)
         self.tree.pack(pady=10, fill=tk.BOTH, expand=True)
+        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
 
     def select_warranty_file(self):
         # Mở hộp thoại chọn file
